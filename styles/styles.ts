@@ -11,12 +11,13 @@ const styles = StyleSheet.create({
     },
     header: {
         marginTop: 75,
-        marginLeft: 75,
+        paddingHorizontal: 75,
         width: '100%',
         display: "flex",
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "flex-start",
+        // backgroundColor: "red",
     },
     body: {
         flex: 1,
@@ -101,6 +102,7 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         alignItems: "center",
         borderRadius: 5,
+        flexDirection: "row",
     },
     returnButton: {
         backgroundColor: "black",
@@ -113,7 +115,15 @@ const styles = StyleSheet.create({
         alignItems: "center",
         gap: 10,
         flex: 1,
-    }
+    },
+    headerSpacer: {
+        flex: 1,
+        // backgroundColor: "red",
+    }, debugButton: {
+        backgroundColor: "black",
+        padding: 10,
+        borderRadius: 5,
+    },
 });
 
 export default styles;

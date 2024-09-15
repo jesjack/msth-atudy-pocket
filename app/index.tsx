@@ -1,4 +1,9 @@
 // index.tsx
 import Calculator from "@/components/Calculator";
 
-export default Calculator;
+
+const App = () => {
+    return <Calculator />;
+};
+
+export default App;

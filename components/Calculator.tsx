@@ -1,21 +1,30 @@
 // Calculator.tsx
-import React, {useState as useState__, useEffect, SetStateAction} from 'react';
-import { View, Text, TextInput, TouchableOpacity } from 'react-native';
-import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome";
 import {
     fa0, fa1, fa2, fa3, fa4, fa5, fa6, fa7, fa8, fa9,
-    faArrowLeft, faArrowsSpin, faBrain, faCircleDot, faDivide,
-    faEquals, faHandshake, faMinus, faPlus, faToilet, faXmark
+    faArrowLeft, faArrowsSpin, faBrain, faBug, faCircleDot, faDivide,
+    faEquals, faHandshake, faInfinity, faMinus, faPlus, faPlusMinus, faToilet, faXmark
 } from "@fortawesome/free-solid-svg-icons";
-import Grid from "@/components/Grid";
-import NumberToIcons from "@/components/NumberToIcons";
-import styles from "@/styles/styles";
+import { FontAwesomeIcon } from "@fortawesome/react-native-fontawesome";
 import {IconDefinition} from "@fortawesome/fontawesome-svg-core";
-import CalcButton from "@/components/CalcButton";
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import OperationDisplay from "@/components/OperationDisplay";
+import NumberToIcons from "@/components/NumberToIcons";
+import CalcButton from "@/components/CalcButton";
 import {Operation} from "@/interfaces/Operation";
-import useStateWithPromise from "@/interfaces/UseState";
+import {View, TextInput, TouchableOpacity, Text} from 'react-native';
+import Confetti from 'react-native-confetti';
+import React, {useEffect} from 'react';
+import Grid from "@/components/Grid";
+import styles from "@/styles/styles";
+import {Debug, debugOptions, openPrompt} from "@/scripts/debug";
+import useStateStorage from "@/interfaces/UseState";
+import Toast from "react-native-toast-message";
+import { Audio } from 'expo-av';
+import {assert} from "realm/dist/assert";
+import boolean = assert.boolean;
+import DynamicModal from "@/components/DynamicModal";
+// import AsyncStorage from "@react-native-async-storage/async-storage";
+//
+// AsyncStorage.clear().then();
 
 const rows = [
     [fa7, fa8, fa9],
@@ -24,261 +33,257 @@ const rows = [
     [faCircleDot, fa0, faMinus],
 ];
 
-const operationIcons = [faPlus, faMinus, faXmark, faDivide];
-
-const defOperation: Operation = {
-    aValue: 0,
-    bValue: 0,
-    operationIcon: faPlus,
-};
-
-const waitingFunctions: (() => void)[] = [];
-
 export default function Calculator() {
-    const useState = <T extends unknown>(initialValue: T, setterFunction: (value: T) => Promise<void>): [T, (value: T) => void] => {
-        const [state, setState] = useState__<T>(initialValue);
-        return [state, (v: T) => {
-            setterFunction(v).then(r => r);
-            setState(v)
-            console.log('state', state, v);
-        }];
-    };
+    const [ sound, _, setSound ] = useStateStorage<Audio.Sound | null>(null);
+    const [ experience, getExperience, setExperience ] = useStateStorage<number>(0, 'experience');
+    const [ minValue, getMinValue, setMinValue ] = useStateStorage<number>(0, 'minValue');
+    const [ maxValue, getMaxValue, setMaxValue ] = useStateStorage<number>(0, 'maxValue');
+    const [ unlockedOperationIcons, getUnlockedOperationIcons, setUnlockedOperationIcons ] = useStateStorage<IconDefinition[]>([faPlus], 'unlockedOperationIcons');
+    const [ solvedOperations, getSolvedOperations, setSolvedOperations ] = useStateStorage<Operation[]>([], 'solvedOperations');
+    const [ capInfinity, getCapInfinity, setCapInfinity ] = useStateStorage<boolean>(false, 'capInfinity');
+    const [ unlockedSpecials, getUnlockedSpecials, setUnlockedSpecials ] = useStateStorage<('infinity'|'negatives')[]>([], 'unlockedSpecials');
 
-    const [experience, setExperienceState] = useStateWithPromise<number>(0, setExperience);
-    const [minValue, setMinValueState] = useStateWithPromise<number>(0, setMinValue);
-    const [maxValue, setMaxValueState] = useStateWithPromise<number>(0, setMaxValue);
-    const [unlockedOperationIcons, setUnlockedOperationIconsState] = useStateWithPromise<IconDefinition[]>([faPlus], setUnlockedOperationIcons);
-    const [currentOperation, setCurrentOperationState] = useStateWithPromise<Operation>(defOperation, setCurrentOperation);
-    const [solvedOperations, setSolvedOperationsState] = useStateWithPromise<Operation[]>([], setSolvedOperations);
-    const [inputValue, setInputValue] = useState__('');
+    function generateNewOperation() {
+        let aValue = Math.floor(Math.random() * (getMaxValue() - getMinValue() + 1) + getMinValue());
+        let bValue = Math.floor(Math.random() * (getMaxValue() - getMinValue() + 1) + getMinValue());
+        let operationIcon = getUnlockedOperationIcons()[Math.floor(Math.random() * getUnlockedOperationIcons().length)];
+        if (operationIcon.iconName === 'minus') {
+            aValue = Math.floor(aValue / 3);
+            bValue = Math.floor(bValue / 3);
+        }
+        if (operationIcon.iconName === 'xmark') {
+            aValue = Math.floor(aValue / 7);
+            bValue = Math.floor(bValue / 7);
+        }
+        if (operationIcon.iconName === 'divide') {
+            aValue = Math.floor(aValue / 15);
+            bValue = Math.floor(bValue / 15);
+        }
+        let operation = { aValue, bValue, operationIcon };
+        while (solvedOperations.some(op => op.aValue === operation.aValue && op.bValue === operation.bValue && op.operationIcon.iconName === operation.operationIcon.iconName)) {
+            operation = generateNewOperation();
+        }
+        return operation;
+    }
 
-    const addExperience = (value: number) => setExperienceState(experience + value);
-    const subtractExperience = (value: number) => setExperienceState(experience - value);
-    const addSolvedOperation = (operation: Operation) => setSolvedOperationsState([...solvedOperations, operation]);
-    const newOperation = (v: [Operation[], number]) => {
-        const [solvedOperations, maxValue] = v;
-        console.log('newOperation', solvedOperations);
-        let operationIcon = unlockedOperationIcons[Math.floor(Math.random() * unlockedOperationIcons.length)];
-        let aValue = Math.floor(Math.random() * (maxValue - minValue + 1)) + minValue;
-        let bValue = Math.floor(Math.random() * (maxValue - minValue + 1)) + minValue;
-        while (solvedOperations.some(op => op.aValue === aValue && op.bValue === bValue && op.operationIcon.iconName === operationIcon.iconName)) {
-            operationIcon = unlockedOperationIcons[Math.floor(Math.random() * unlockedOperationIcons.length)];
-            aValue = Math.floor(Math.random() * (maxValue - minValue + 1)) + minValue;
-            bValue = Math.floor(Math.random() * (maxValue - minValue + 1)) + minValue;
-        }
-        setCurrentOperationState({ aValue, bValue, operationIcon }).then(v => v);
-    };
-    const checkOperation = () => {
-        const aVal = currentOperation.aValue;
-        const bVal = currentOperation.bValue;
-        const op = {
-            [faPlus.iconName]: {
-                val: aVal + bVal,
-                xp: aVal + bVal,
-            },
-            [faMinus.iconName]: {
-                val: aVal - bVal,
-                xp: aVal + bVal*2,
-            },
-            [faXmark.iconName]: {
-                val: aVal * bVal,
-                xp: Math.min(aVal, bVal)*2 + Math.max(aVal, bVal)*3,
-            },
-            [faDivide.iconName]: {
-                val: aVal / bVal,
-                xp: Math.min(aVal, bVal)*4 + Math.max(aVal, bVal)*5
-            },
-        }[currentOperation.operationIcon.iconName];
-        if (parseFloat(inputValue) === op.val) {
-            addExperience(op.xp).then(v => v);
-            Promise.all([
-                addSolvedOperation(currentOperation),
-                setMaxValueState(maxValue + 1),
-            ])
-            .then(v => newOperation(v));
-            setInputValue('');
-        } else {
-            subtractExperience(5).then(v => v);
-        }
-    };
-    const wipeData = async () => {
-        try {
-            await AsyncStorage.clear();
-        } catch (e) {
-            console.error(e);
-        }
-        setExperienceState(0).then(v => v);
-        setUnlockedOperationIconsState([faPlus]).then(v => v);
-        setCurrentOperationState(defOperation).then(v => v);
-        setSolvedOperationsState([]).then(v => v);
+    const [ currentOperation, getCurrentOperation, setCurrentOperation ] = useStateStorage<Operation>(generateNewOperation());
+    const [ inputValue, getInputValue, setInputValue ] = useStateStorage<string>('');
+    const [ pass, getPass, setPass ] = useStateStorage<boolean>(false);
+
+    let explosion: Confetti | null;
+
+    const playSound = async (name: 'click' | 'correct' | 'incorrect' = 'click') => {
+        const sounds = {
+            click: require('../assets/sounds/click.wav'),
+            correct: require('../assets/sounds/correct.mp3'),
+            incorrect: require('../assets/sounds/incorrect.wav'),
+        };
+        const { sound } = await Audio.Sound.createAsync(sounds[name]);
+        setSound(sound);
+        await sound.playAsync();
     };
 
     useEffect(() => {
-        const f: Map<(v: SetStateAction<any>) => void, () => Promise<any>> = new Map();
-        f.set(setExperienceState, getExperience);
-        f.set(setUnlockedOperationIconsState, getUnlockedOperationIcons);
-        f.set(setCurrentOperationState, getCurrentOperation);
-        f.set(setMinValueState, getMinValue);
-        f.set(setMaxValueState, getMaxValue);
-        f.set(setSolvedOperationsState, getSolvedOperations);
-        f.forEach((fetch, set) => fetch().then(set));
-    }, []);
+        return sound ? () => {sound.unloadAsync()} : undefined;
+    }, [sound]);
 
-    const handlePress = (item: IconDefinition) => {
-        const symbol = item.iconName === 'minus' ? '-' : item.iconName === 'circle-dot' ? '.' : item.iconName;
-        setInputValue(prev => prev + symbol);
+    const checkOperation = () => {
+        if (getCapInfinity()) {
+            if (getInputValue() === '±∞') {
+                playSound('correct').then();
+                setInputValue('');
+                setExperience(getExperience() + 50);
+                setSolvedOperations([...getSolvedOperations(), getCurrentOperation()]);
+                setMaxValue(getMaxValue() + 1);
+                setCurrentOperation(generateNewOperation());
+                setUnlockedSpecials([...getUnlockedSpecials(), 'infinity']);
+                setCapInfinity(getCurrentOperation().bValue === 0 && getCurrentOperation().operationIcon.iconName === 'divide');
+                return;
+            }
+            playSound('incorrect').then(() => setExperience(getExperience() - 1));
+            return;
+        }
+
+        const result = calculateResult(getCurrentOperation());
+        const resultValue = Number(result.value.toFixed(1));
+        const inputValueValue = Number(parseFloat(getInputValue()).toFixed(1));
+        if (inputValueValue !== resultValue)
+            return playSound('incorrect').then(() => setExperience(getExperience() - 1));
+        playSound('correct').then();
+        setInputValue('');
+        setExperience(getExperience() + result.xp);
+        setSolvedOperations([...getSolvedOperations(), getCurrentOperation()]);
+        setMaxValue(getMaxValue() + 1);
+        setCurrentOperation(generateNewOperation());
+
+        setCapInfinity(getCurrentOperation().bValue === 0 && getCurrentOperation().operationIcon.iconName === 'divide');
+
+        if (explosion) explosion.startConfetti();
+        setPass(false);
+        Toast.show({
+            type: 'success',
+            text1: 'Correcto',
+            text2: `+${result.xp} XP`,
+            visibilityTime: 1000,
+            position: 'bottom',
+        });
+        if (getExperience() >= 10 && !getUnlockedOperationIcons().map(icon => icon.iconName).includes('minus')) {
+            setUnlockedOperationIcons([...getUnlockedOperationIcons(), faMinus]);
+            Toast.show({
+                type: 'success',
+                text1: 'Nuevo icono desbloqueado',
+                text2: 'Operación de resta',
+                visibilityTime: 2000,
+                position: 'bottom',
+            });
+        }
+        if (getExperience() >= 100 && !getUnlockedOperationIcons().map(icon => icon.iconName).includes('xmark')) {
+            setUnlockedOperationIcons([...getUnlockedOperationIcons(), faXmark]);
+            Toast.show({
+                type: 'success',
+                text1: 'Nuevo icono desbloqueado',
+                text2: 'Operación de multiplicación',
+                visibilityTime: 2000,
+                position: 'bottom',
+            });
+        }
+        if (getExperience() >= 300 && !getUnlockedOperationIcons().map(icon => icon.iconName).includes('divide')) {
+            setUnlockedOperationIcons([...getUnlockedOperationIcons(), faDivide]);
+            Toast.show({
+                type: 'success',
+                text1: 'Nuevo icono desbloqueado',
+                text2: 'Operación de división',
+                visibilityTime: 2000,
+                position: 'bottom',
+            });
+        }
+    };
+
+    const handlePress = (icon: IconDefinition | 'capInfinity') => {
+        playSound('click').then();
+
+        if (icon === 'capInfinity') {
+            setInputValue('±∞');
+            return;
+        }
+
+        const symbolMap: { [key: string]: string } = {
+            minus: '-',
+            'circle-dot': '.',
+            '0': '0', '1': '1', '2': '2', '3': '3', '4': '4', '5': '5', '6': '6', '7': '7', '8': '8', '9': '9',
+        };
+        const symbol = symbolMap[icon.iconName] || '';
+        const newValue = getInputValue() + symbol;
+        const result = calculateResult(getCurrentOperation());
+        setInputValue(newValue.toString());
+
+        if (getPass() || (result.value.toString().length !== newValue.toString().length)) return;
+        if (parseFloat(newValue) === result.value) checkOperation()?.then();
+        else setPass(true);
+    };
+
+    const wipeData = () => {
+        setExperience(0);
+        setMinValue(0);
+        setMaxValue(0);
+        setUnlockedOperationIcons([faPlus]);
+        setSolvedOperations([]);
+    };
+
+    const divideByZero = () => {
+        const currentOperation = getCurrentOperation();
+        currentOperation.bValue = 0;
+        currentOperation.operationIcon = faDivide;
+        setCurrentOperation(currentOperation);
+        setCapInfinity(true);
     };
 
     return (
         <View style={styles.container}>
-            <View style={styles.header}>
-                <FontAwesomeIcon icon={faBrain} />
-                <NumberToIcons number={experience} />
-                <CalcButton icon={faToilet} onPress={wipeData} style={styles.returnButton} />
-            </View>
-            <View style={styles.body}>
-                <View style={styles.layout1}>
-                    <View style={styles.question}>
-                        <OperationDisplay {...currentOperation} />
-                        <CalcButton icon={faArrowsSpin} onPress={() => newOperation([solvedOperations, maxValue])} style={styles.returnButton} />
-                    </View>
-                    <View style={styles.result}>
-                        <FontAwesomeIcon icon={faEquals} />
-                        <TextInput
-                            style={styles.numberInput}
-                            keyboardType="numeric"
-                            value={inputValue}
-                            onChangeText={setInputValue}
-                        />
-                        <CalcButton icon={faArrowLeft} onPress={() => setInputValue(inputValue.slice(0, -1))} style={styles.returnButton} />
-                    </View>
-                    <CalcButton icon={faHandshake} onPress={checkOperation} style={styles.resultButton} />
-                </View>
-                <View style={styles.layout2}>
-                    {rows.map((row, rowIndex) => (
-                        <View key={rowIndex} style={styles.l2Row}>
-                            <Grid items={row} onPress={handlePress} />
-                        </View>
-                    ))}
-                </View>
-            </View>
+            <Header experience={experience} debugOptions={{ wipeData, divideByZero }} />
+            <Body
+                currentOperation={currentOperation}
+                inputValue={inputValue}
+                setInputValue={setInputValue}
+                checkOperation={checkOperation}
+                handlePress={handlePress}
+                generateNewOperation={() => setCurrentOperation(generateNewOperation())}
+                capInfinity={capInfinity}
+            />
+            <Confetti ref={ref => (explosion = ref)} duration={1000} confettiCount={20} timeout={1} />
+            <Debug />
+            <Toast />
         </View>
     );
 }
 
-const getExperience = async () => {
-    try {
-        const value = await AsyncStorage.getItem('lvl');
-        if (value !== null) {
-            return parseInt(value, 10);
-        }
-        return 0; // Default value if not set
-    } catch (e) {
-        console.error(e);
-        return 0;
+const calculateResult = (operation: Operation) => {
+    const { aValue, bValue, operationIcon } = operation;
+    switch (operationIcon.iconName) {
+        case 'plus':
+            return { value: aValue + bValue, xp: aValue.toString().length + bValue.toString().length + (aValue+bValue).toString().length };
+        case 'minus':
+            return { value: aValue - bValue, xp: (aValue.toString().length + bValue.toString().length + (aValue+bValue).toString().length)*2 };
+        case 'xmark':
+            return { value: aValue * bValue, xp: 10 };
+        case 'divide':
+            return { value: aValue / bValue, xp: (aValue/bValue).toString().length*20 };
+        default:
+            return { value: 0, xp: 0 };
     }
 };
 
-const setExperience = async (lvl: number) => {
-    try {
-        await AsyncStorage.setItem('lvl', lvl.toString());
-    } catch (e) {
-        console.error(e);
-    }
-};
+const Header = ({ experience, debugOptions }: { experience: number, debugOptions: debugOptions }) => (
+    <View style={styles.header}>
+        <FontAwesomeIcon icon={faBrain} />
+        <NumberToIcons number={experience} />
+        <View style={styles.headerSpacer} />
+        <CalcButton icon={faBug} onPress={() => openPrompt(debugOptions)} style={styles.debugButton} />
+    </View>
+);
 
-const getUnlockedOperationIcons: () => Promise<IconDefinition[]> = async () => {
-    try {
-        const value = await AsyncStorage.getItem('unlockedOperationIcons');
-        if (value !== null) {
-            return JSON.parse(value);
-        }
-    } catch (e) {
-        console.error(e);
-    }
-    return [faPlus];
-};
-
-const setUnlockedOperationIcons = async (operations: IconDefinition[]) => {
-    try {
-        await AsyncStorage.setItem('unlockedOperationIcons', JSON.stringify(operations));
-    } catch (e) {
-        console.error(e);
-    }
-};
-
-const getCurrentOperation: () => Promise<Operation> = async () => {
-    try {
-        const value = await AsyncStorage.getItem('currentOperation');
-        if (value !== null)
-            return JSON.parse(value);
-    } catch (e) {
-        console.error(e);
-    }
-    return defOperation;
-};
-
-const setCurrentOperation = async (operation: Operation) => {
-    try {
-        await AsyncStorage.setItem('currentOperation', JSON.stringify(operation));
-    } catch (e) {
-        console.error(e);
-    }
-};
-
-const getMinValue = async () => {
-    try {
-        const value = await AsyncStorage.getItem('minValue');
-        if (value !== null)
-            return parseInt(value, 10);
-    } catch (e) {
-        console.error(e);
-    }
-    return 0;
-};
-
-const setMinValue = async (value: number) => {
-    try {
-        await AsyncStorage.setItem('minValue', value.toString());
-    } catch (e) {
-        console.error(e);
-    }
-};
-
-const getMaxValue = async () => {
-    try {
-        const value = await AsyncStorage.getItem('maxValue');
-        if (value !== null)
-            return parseInt(value, 10);
-    } catch (e) {
-        console.error(e);
-    }
-    return 0;
-};
-
-const setMaxValue = async (value: number) => {
-    try {
-        await AsyncStorage.setItem('maxValue', value.toString());
-    } catch (e) {
-        console.error(e);
-    }
-};
-
-const getSolvedOperations = async () => {
-    try {
-        const value = await AsyncStorage.getItem('solvedOperations');
-        if (value !== null)
-            return JSON.parse(value);
-    } catch (e) {
-        console.error(e);
-    }
-    return [];
-};
-
-const setSolvedOperations = async (operations: Operation[]) => {
-    try {
-        await AsyncStorage.setItem('solvedOperations', JSON.stringify(operations));
-    } catch (e) {
-        console.error(e);
-    }
-};
+const Body = ({ currentOperation, inputValue, setInputValue, checkOperation, handlePress, generateNewOperation, capInfinity }: {
+    currentOperation: Operation;
+    inputValue: string;
+    setInputValue: (value: string) => void;
+    checkOperation: () => void;
+    handlePress: (icon: IconDefinition | 'capInfinity') => void;
+    generateNewOperation: () => void;
+    capInfinity: boolean;
+}) => (
+    <View style={styles.body}>
+        <View style={styles.layout1}>
+            <View style={styles.question}>
+                <OperationDisplay {...currentOperation} />
+                <CalcButton icon={faArrowsSpin} onPress={generateNewOperation} style={styles.returnButton} />
+            </View>
+            <View style={styles.result}>
+                <FontAwesomeIcon icon={faEquals} />
+                <TextInput
+                    style={styles.numberInput}
+                    keyboardType="numeric"
+                    value={inputValue}
+                    onChangeText={(value) => setInputValue(value)}
+                />
+                <CalcButton icon={faArrowLeft} onPress={() => setInputValue(inputValue.slice(0, -1))} style={styles.returnButton} />
+            </View>
+            <CalcButton icon={faHandshake} onPress={checkOperation} style={styles.resultButton} />
+        </View>
+        <View style={styles.layout2}>
+            {rows.map((row, index) => (
+                <View key={index} style={styles.l2Row}>
+                    <Grid items={row} onPress={handlePress} capInfinity={capInfinity} />
+                </View>
+            ))
+                // :<View style={styles.l2Row}>
+                //     <View style={styles.gridItem}>
+                //         <TouchableOpacity onPress={() => handlePressCapInfinity()} style={{...styles.calcButton, flexDirection: 'row'}}>
+                //             <FontAwesomeIcon icon={faPlusMinus} style={styles.calcText} />
+                //             <FontAwesomeIcon icon={faInfinity} style={styles.calcText} />
+                //         </TouchableOpacity>
+                //     </View>
+                // </View>
+            }
+        </View>
+    </View>
+);

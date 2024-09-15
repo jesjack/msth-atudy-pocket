@@ -1,28 +1,33 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-function useStateWithPromise<T>(initialValue: T, setterFunction: (value: T) => Promise<void>): [T, (value: T) => Promise<T>] {
+function useStateStorage<T>(initialValue: T, saveInStorage: false | string = false): [T, () => T, (newValue: T) => void] {
     const [state, setState] = useState<T>(initialValue);
-    const resolverRef = useRef<(value: T) => void>();
+    const valueRef = useRef(initialValue);
 
     useEffect(() => {
-        if (resolverRef.current) {
-            resolverRef.current(state);
-            resolverRef.current = undefined;
+        if (saveInStorage) {
+            AsyncStorage.getItem(saveInStorage).then((data) => {
+                if (data) {
+                    const parsedData = JSON.parse(data);
+                    setState(parsedData);
+                    valueRef.current = parsedData;
+                }
+            });
         }
-    }, [state]);
+    }, [saveInStorage]);
 
-    const setStateAsync = useCallback((value: T): Promise<T> => {
-        setState(value);
-        return new Promise<T>((resolve) => {
-            resolverRef.current = resolve;
-        });
-    }, []);
+    const setValue = (newValue: T) => {
+        setState(newValue);
+        valueRef.current = newValue;
+        if (saveInStorage) {
+            AsyncStorage.setItem(saveInStorage, JSON.stringify(newValue));
+        }
+    };
 
-    return [state, async(v: T) => {
-        await setStateAsync(v);
-        await setterFunction(v);
-        return v;
-    }];
+    const getValue = () => valueRef.current;
+
+    return [state, getValue, setValue];
 }
 
-export default useStateWithPromise;
+export default useStateStorage;
