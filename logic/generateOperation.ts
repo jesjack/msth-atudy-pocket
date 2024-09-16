@@ -1,18 +1,13 @@
-import {Operation} from "@/interfaces/Operation";
-import {IconDefinition} from "@fortawesome/fontawesome-svg-core";
+import useGenOpParams from "@/hooks/useGenOpParams";
 
-/**
- * @param solvedOperations
- * @param getMinValue
- * @param getMaxValue
- * @param getUnlockedOperationIcons
- */
-export function genOpGen(
-    solvedOperations: Operation[],
-    getMinValue: () => number,
-    getMaxValue: () => number,
-    getUnlockedOperationIcons: () => IconDefinition[]
-) {
+export function genOpGen() {
+    const {
+        solvedOperations,
+        getUnlockedOperationIcons,
+        getMinValue,
+        getMaxValue
+    } = useGenOpParams();
+
     return function generateNewOperation() {
         let aValue = Math.floor(Math.random() * (getMaxValue() - getMinValue() + 1) + getMinValue());
         let bValue = Math.floor(Math.random() * (getMaxValue() - getMinValue() + 1) + getMinValue());

@@ -6,17 +6,27 @@ import {calculateResult} from "@/logic/calculatorLogic";
 import Toast from "react-native-toast-message";
 import Confetti from "react-native-confetti";
 import {faDivide, faMinus, faXmark} from "@fortawesome/free-solid-svg-icons";
+import useOperationManagement from "@/hooks/useOperationManagement";
 
 export function handlePressGen(
-    setSound: (sound: Audio.Sound | null) => void,
-    getInputValue: () => string,
-    setInputValue: (value: string) => void,
-    getCurrentOperation: () => Operation,
-    calculateResult: (operation: Operation) => { value: number, xp: number },
-    checkOperation: () => undefined | Promise<void>,
-    setPass: (value: boolean) => void,
-    getPass: () => boolean,
+    checkOperation: () => Promise<void> | undefined
 ) {
+    const {
+        sound, setSound,
+        experience, getExperience, setExperience,
+        minValue, getMinValue, setMinValue,
+        maxValue, getMaxValue, setMaxValue,
+        unlockedOperationIcons, getUnlockedOperationIcons, setUnlockedOperationIcons,
+        solvedOperations, getSolvedOperations, setSolvedOperations,
+        capInfinity, getCapInfinity, setCapInfinity,
+        unlockedSpecials, getUnlockedSpecials, setUnlockedSpecials,
+        currentOperation, getCurrentOperation, setCurrentOperation,
+        inputValue, getInputValue, setInputValue,
+        pass, getPass, setPass,
+        explosion, getExplosion, setExplosion,
+        generateNewOperation
+    } = useOperationManagement();
+
     return (icon: IconDefinition | 'capInfinity') => {
         playSound('click', setSound).then();
 
@@ -41,29 +51,21 @@ export function handlePressGen(
     };
 }
 
-export function checkOpGen(
-    setSound: (sound: Audio.Sound | null) => void,
-    getInputValue: () => string,
-    setInputValue: (value: string) => void,
-    getCurrentOperation: () => Operation,
-    calculateResult: (operation: Operation) => { value: number, xp: number },
-    setExperience: (value: number) => void,
-    getExperience: () => number,
-    setSolvedOperations: (value: Operation[]) => void,
-    getSolvedOperations: () => Operation[],
-    getUnlockedSpecials: () => ('infinity' | 'negatives')[],
-    setUnlockedSpecials: (value: ('infinity' | 'negatives')[]) => void,
-    setMaxValue: (value: number) => void,
-    getMaxValue: () => number,
-    setCurrentOperation: (value: Operation) => void,
-    generateNewOperation: () => Operation,
-    setCapInfinity: (value: boolean) => void,
-    getCapInfinity: () => boolean,
-    setUnlockedOperationIcons: (value: IconDefinition[]) => void,
-    getUnlockedOperationIcons: () => IconDefinition[],
-    setPass: (value: boolean) => void,
-    getExplosion: () => (Confetti | null),
-) {
+export function checkOpGen() {
+    const {
+        setSound,
+        getExperience, setExperience,
+        getMaxValue, setMaxValue,
+        getUnlockedOperationIcons, setUnlockedOperationIcons,
+        getSolvedOperations, setSolvedOperations,
+        getCapInfinity, setCapInfinity,
+        getUnlockedSpecials, setUnlockedSpecials,
+        getCurrentOperation, setCurrentOperation,
+        getInputValue, setInputValue,
+        setPass, getExplosion,
+        generateNewOperation
+    } = useOperationManagement();
+
     return () => {
         if (getCapInfinity()) {
             if (getInputValue() === '±∞') {
