@@ -9,12 +9,14 @@ const useGenOpParams = () => {
     const [ maxValue, getMaxValue, setMaxValue ] = useStateStorage<number>(0, 'maxValue');
     const [ unlockedOperationIcons, getUnlockedOperationIcons, setUnlockedOperationIcons ] = useStateStorage<IconDefinition[]>([faPlus], 'unlockedOperationIcons');
     const [ solvedOperations, getSolvedOperations, setSolvedOperations ] = useStateStorage<Operation[]>([], 'solvedOperations');
+    const [ unlockedAchievements, getUnlockedAchievements, setUnlockedAchievements ] = useStateStorage<number[]>([], 'unlockedAchievements');
 
     return {
         minValue, getMinValue, setMinValue,
         maxValue, getMaxValue, setMaxValue,
         unlockedOperationIcons, getUnlockedOperationIcons, setUnlockedOperationIcons,
-        solvedOperations, getSolvedOperations, setSolvedOperations
+        solvedOperations, getSolvedOperations, setSolvedOperations,
+        unlockedAchievements, getUnlockedAchievements, setUnlockedAchievements
     };
 };
 

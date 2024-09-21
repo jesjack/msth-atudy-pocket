@@ -11,12 +11,13 @@ const styles = StyleSheet.create({
     },
     header: {
         marginTop: 75,
-        paddingHorizontal: 75,
+        paddingHorizontal: 15,
         width: '100%',
         display: "flex",
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "flex-start",
+        gap: 10,
         // backgroundColor: "red",
     },
     body: {
@@ -124,6 +125,13 @@ const styles = StyleSheet.create({
         padding: 10,
         borderRadius: 5,
     },
+    modalTitle: {
+        fontSize: 24,
+        fontWeight: "bold",
+        marginBottom: 10,
+        textAlign: "center",
+    },
+
 });
 
 export default styles;

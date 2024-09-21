@@ -1,7 +1,7 @@
 import {faDivide, faPlus} from "@fortawesome/free-solid-svg-icons";
 import useOperationManagement from "@/hooks/useOperationManagement";
 
-export default function () {
+export default function (useOperationManagement_: ReturnType<typeof useOperationManagement>) {
     const {
         setExperience,
         setMinValue,
@@ -9,8 +9,9 @@ export default function () {
         setUnlockedOperationIcons,
         setSolvedOperations,
         setCapInfinity,
-        getCurrentOperation, setCurrentOperation
-    } = useOperationManagement();
+        getCurrentOperation, setCurrentOperation,
+        setUnlockedAchievements,
+    } = useOperationManagement_;
 
     return {
         wipeData: () => {
@@ -19,6 +20,7 @@ export default function () {
             setMaxValue(0);
             setUnlockedOperationIcons([faPlus]);
             setSolvedOperations([]);
+            setUnlockedAchievements([]);
         },
         divideByZero: () => {
             const currentOperation = getCurrentOperation();

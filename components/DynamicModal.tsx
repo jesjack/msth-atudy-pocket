@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, Animated, TouchableWithoutFeedback, StyleSheet, Button } from 'react-native';
+import { Modal, View, Text, Animated, TouchableWithoutFeedback, StyleSheet, ScrollView, Button } from 'react-native';
 
 interface DynamicModalProps {
     visible: boolean;
@@ -8,7 +8,7 @@ interface DynamicModalProps {
     children: React.ReactNode;
 }
 
-const ExplanationModal: React.FC<DynamicModalProps> = ({ visible, onClose, closeOnPressOutside = true, children }) => {
+const DynamicModal: React.FC<DynamicModalProps> = ({ visible, onClose, closeOnPressOutside = true, children }) => {
     const [modalVisible, setModalVisible] = useState(visible);
     const scaleValue = useState(new Animated.Value(0))[0];
 
@@ -61,9 +61,11 @@ const ExplanationModal: React.FC<DynamicModalProps> = ({ visible, onClose, close
                 <View style={styles.modalOverlay}>
                     <TouchableWithoutFeedback>
                         <Animated.View style={[styles.modalContent, { transform: [{ scale: scaleValue }] }]}>
-                            {children}
-                            {/* Botón para cerrar el modal */}
-                            <Button title="Cerrar Modal" onPress={closeModal} />
+                            <ScrollView contentContainerStyle={styles.scrollViewContent}>
+                                {children}
+                            </ScrollView>
+                            {/* Botón opcional para cerrar el modal */}
+                            {/* <Button title="Cerrar Modal" onPress={closeModal} /> */}
                         </Animated.View>
                     </TouchableWithoutFeedback>
                 </View>
@@ -80,12 +82,34 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
     },
     modalContent: {
-        width: 300,
+        width: '90%',
+        maxHeight: '80%', // Altura máxima del modal
         padding: 20,
         backgroundColor: 'white',
         borderRadius: 10,
         elevation: 5,
     },
+    scrollViewContent: {
+        flexGrow: 1,
+    },
 });
 
-export default ExplanationModal;
+export default DynamicModal;
+
+export const DynamicModal1: (
+    closable?: boolean,
+) => [pop: (children: React.ReactNode) => void, modal: React.ReactNode] = (
+    closable = true,
+) => {
+    const [modal, setModal] = useState<React.ReactNode>(null);
+
+    const pop = (children: React.ReactNode) => {
+        setModal(
+            <DynamicModal visible={true} onClose={() => setModal(null)} closeOnPressOutside={closable}>
+                {children}
+            </DynamicModal>,
+        );
+    };
+
+    return [pop, modal];
+};

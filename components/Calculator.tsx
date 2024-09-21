@@ -14,6 +14,8 @@ import {Debug} from "@/scripts/debug";
 import useOperationManagement from "@/hooks/useOperationManagement";
 
 const Calculator = () => {
+    const operationManagement = useOperationManagement();
+
     const {
         sound, setSound,
         experience, getExperience, setExperience,
@@ -22,36 +24,27 @@ const Calculator = () => {
         unlockedOperationIcons, getUnlockedOperationIcons, setUnlockedOperationIcons,
         solvedOperations, getSolvedOperations, setSolvedOperations,
         capInfinity, getCapInfinity, setCapInfinity,
-        unlockedSpecials, getUnlockedSpecials, setUnlockedSpecials,
         currentOperation, getCurrentOperation, setCurrentOperation,
         inputValue, getInputValue, setInputValue,
         pass, getPass, setPass,
         explosion, getExplosion, setExplosion,
-        generateNewOperation
-    } = useOperationManagement();
+        generateNewOperation,
+        unlockedAchievements, getUnlockedAchievements, setUnlockedAchievements
+    } = operationManagement;
 
     const colorScheme = useColorScheme();
     const themeColor = useThemeColor({}, 'background');
-    const debugOptions = debugOptions_();
-    const checkOperation = checkOpGen();
-    const handlePress = handlePressGen(checkOperation);
-
-    useEffect(() => {
-        // Example: Set the initial operation or fetch data if needed
-        setCurrentOperation(generateNewOperation());
-    }, []);
+    const debugOptions = debugOptions_(operationManagement);
+    const checkOperation = checkOpGen(operationManagement);
+    const handlePress = handlePressGen(checkOperation, operationManagement);
 
     return (
         <View style={[styles.container, { backgroundColor: themeColor }]}>
-            <Header experience={experience} debugOptions={debugOptions} />
+            <Header experience={experience} debugOptions={debugOptions} achievements={unlockedAchievements} />
             <Body
-                currentOperation={currentOperation}
-                inputValue={inputValue}
-                setInputValue={setInputValue}
                 checkOperation={checkOperation}
                 handlePress={handlePress}
-                generateNewOperation={() => setCurrentOperation(generateNewOperation())}
-                capInfinity={capInfinity}
+                useOperationManagement={operationManagement}
             />
             <Confetti ref={ref => setExplosion(ref)} duration={1000} confettiCount={20} timeout={1} />
             <Debug />

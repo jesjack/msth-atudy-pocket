@@ -6,15 +6,16 @@ function useStateStorage<T>(initialValue: T, saveInStorage: false | string = fal
     const valueRef = useRef(initialValue);
 
     useEffect(() => {
-        if (saveInStorage) {
-            AsyncStorage.getItem(saveInStorage).then((data) => {
-                if (data) {
-                    const parsedData = JSON.parse(data);
-                    setState(parsedData);
-                    valueRef.current = parsedData;
-                }
-            });
+        if (!saveInStorage) {
+            return;
         }
+        AsyncStorage.getItem(saveInStorage).then((data) => {
+            if (data) {
+                const parsedData = JSON.parse(data);
+                setState(parsedData);
+                valueRef.current = parsedData;
+            }
+        });
     }, [saveInStorage]);
 
     const setValue = (newValue: T) => {
